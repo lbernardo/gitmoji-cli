@@ -12,8 +12,27 @@ import (
 
 var gitmojis pkg.Gitmojis
 
+var filterTypes = map[string]string{
+	"feature":     "✨",
+	"feat":        "✨",
+	"bug":         "🐛",
+	"fix":         "🐛",
+	"improvement": "⚡️",
+	"remove":      "🔥",
+	"release":     "🔖",
+	"deploy":      "🚀",
+	"doc":         "📝",
+	"docs":        "📝",
+	"work":        "🚧",
+	"in-progress": "🚧",
+	"progress":    "🚧",
+	"refactor":    "♻️",
+	"hotfiz":      "🚑️",
+}
+
 func rootCmd() *cobra.Command {
 	var gitCommitMessage string
+	var commitType string
 	cm := &cobra.Command{
 		Use:   "gitmoji",
 		Short: "Git commit with emojis",
@@ -27,36 +46,42 @@ func rootCmd() *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("failed to get worktree: %w", err)
 			}
-
-			var options = []huh.Option[string]{}
-			for _, g := range gitmojis.Gitmojis {
-				options = append(options, huh.NewOption(fmt.Sprintf("%s %s", g.Emoji, g.Description), g.Emoji))
-			}
-
+			fields := []huh.Field{}
 			var selected string
 
-			groups := []*huh.Group{}
-			groups = append(groups, huh.NewGroup(huh.NewSelect[string]().
-				Title("Select a gitmoji").Options(
-				options...,
-			).Value(&selected)))
+			selected, ok := filterTypes[commitType]
+
+			if commitType == "" || !ok {
+				var options = []huh.Option[string]{}
+				for _, g := range gitmojis.Gitmojis {
+					options = append(options, huh.NewOption(fmt.Sprintf("%s %s", g.Emoji, g.Description), g.Emoji))
+				}
+
+				fields = append(fields, huh.NewSelect[string]().
+					Title("Select a gitmoji").Options(
+					options...,
+				).Value(&selected))
+			}
 
 			if gitCommitMessage == "" {
-				groups = append(groups, huh.NewGroup(huh.NewInput().
+				fields = append(fields, huh.NewInput().
 					Title("Enter commit message").
 					Placeholder("commit message").
-					Value(&gitCommitMessage)))
+					Value(&gitCommitMessage))
 			}
 
-			form := huh.NewForm(
-				groups...,
-			)
+			if len(fields) > 0 {
+				form := huh.NewForm(
+					huh.NewGroup(
+						fields...,
+					),
+				)
 
-			if err := form.Run(); err != nil {
-				fmt.Printf("failed to run form: %v\n", err)
-				os.Exit(1)
+				if err := form.Run(); err != nil {
+					fmt.Printf("failed to run form: %v\n", err)
+					os.Exit(1)
+				}
 			}
-
 			_, err = w.Commit(fmt.Sprintf("%s %s", selected, gitCommitMessage), &git.CommitOptions{})
 			if err != nil {
 				return fmt.Errorf("failed to commit: %w", err)
@@ -67,6 +92,7 @@ func rootCmd() *cobra.Command {
 		},
 	}
 	cm.Flags().StringVarP(&gitCommitMessage, "message", "m", "", "commit message")
+	cm.Flags().StringVarP(&commitType, "type", "t", "", "commit type (feature, bug, improvement, release)")
 	return cm
 }
 

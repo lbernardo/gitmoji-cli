@@ -27,7 +27,7 @@ var filterTypes = map[string]string{
 	"in-progress": "🚧",
 	"progress":    "🚧",
 	"refactor":    "♻️",
-	"hotfiz":      "🚑️",
+	"hotfix":      "🚑️",
 }
 
 func rootCmd() *cobra.Command {
